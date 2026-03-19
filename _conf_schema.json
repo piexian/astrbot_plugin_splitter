@@ -23,6 +23,12 @@
     "type": "string",
     "default": ""
   },
+  "trim_segment_edge_blank_lines": {
+    "description": "是否清理每段首尾空行。",
+    "hint": "开启后，仅移除每个分段开头和结尾的空白行，不影响段内正文换行。",
+    "type": "bool",
+    "default": true
+  },
   "inject_kaomoji_prompt": {
     "description": "是否注入颜文字保护提示词。",
     "hint": "开启后，会在 LLM 请求前追加提示，要求将颜文字用三反引号包裹，减少被错误分段的概率。",

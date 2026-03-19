@@ -117,6 +117,7 @@ class MessageSplitterPlugin(Star):
         smart_mode = self.config.get("enable_smart_split", True) # 是否开启括号保护等智能模式
         max_segs = self.config.get("max_segments", 7) # 最大分段数
         enable_reply = self.config.get("enable_reply", True) # 是否在第一段保留引用回复
+        trim_segment_edge_blank_lines = self.config.get("trim_segment_edge_blank_lines", True)
 
         # 非文本组件（图片、艾特、表情等）的分段策略
         strategies = {
@@ -261,6 +262,11 @@ class MessageSplitterPlugin(Star):
                     comp.text = comp.text.replace('__ZWSP_DOUBLE__', '\u200b \u200b')
                     comp.text = comp.text.replace('__ZWSP_SINGLE__', '\u200b')
 
+        # 仅裁剪每段首尾的空白行，保留段内原始换行格式
+        if trim_segment_edge_blank_lines:
+            for seg in segments:
+                self._trim_segment_edge_blank_lines(seg)
+
         # 如果只有一段（被上面的判定拦截掉），在这里替换完占位符后直接返回交由框架处理
         if len(segments) <= 1 and not clean_pattern and not at_needs_processing:
             result.chain.clear()
@@ -321,6 +327,27 @@ class MessageSplitterPlugin(Star):
         
         log_content = content_str.replace('\n', '\\n')
         logger.info(f"[Splitter] 第 {index}/{total} 段 ({method}): {log_content}")
+
+    def _trim_segment_edge_blank_lines(self, segment: List[BaseMessageComponent]) -> None:
+        """只移除单个分段首尾 Plain 文本中的空白行，保留中间正文换行。"""
+        first_plain = None
+        last_plain = None
+
+        for comp in segment:
+            if isinstance(comp, Plain):
+                first_plain = comp
+                break
+
+        for comp in reversed(segment):
+            if isinstance(comp, Plain):
+                last_plain = comp
+                break
+
+        if first_plain and first_plain.text:
+            first_plain.text = re.sub(r'^(?:[ \t]*\r?\n)+', '', first_plain.text)
+
+        if last_plain and last_plain.text:
+            last_plain.text = re.sub(r'(?:\r?\n[ \t]*)+$', '', last_plain.text)
 
     async def _process_tts_for_segment(self, event: AstrMessageEvent, segment: List[BaseMessageComponent]) -> List[BaseMessageComponent]:
         """为单个消息分段转换 TTS 语音"""

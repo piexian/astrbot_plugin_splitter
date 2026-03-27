@@ -1,27 +1,52 @@
 {
   "split_mode": {
     "description": "分段识别模式。",
-    "hint": "Regex: 使用正则表达式匹配; Simple: 使用指定字符匹配。",
+    "hint": "Regex: 使用正则表达式匹配; Simple: 使用指定字符列表匹配。",
     "type": "string",
     "options": ["regex", "simple"],
     "default": "regex"
   },
   "split_chars": {
-    "description": "简单模式下的分段字符。文字后面带这些符号就会分段",
-    "hint": "仅分段模式为simple 时生效。输入想要分段的符号（换行是\\n，空格是\\s），如：，。？！\\n",
-    "type": "string",
-    "default": "。？！?!；;\\n"
+    "description": "简单模式下的分段符号(仅Simple生效)",
+    "hint": "可添加多个符号或文本，文字后面带这些内容就会分段（换行是 \\n），如添加：。 或 ！ 或 \\n",
+    "type": "list",
+    "default": ["。", "？", "！", "?", "!", "；", ";", "\n"]
   },
   "split_regex": {
-    "description": "正则模式下的表达式。",
-    "hint": "仅在分段模式为 regex 时生效。",
+    "description": "正则模式下的分段表达式(仅Regex生效)",
+    "hint": "支持高级正则匹配规则。",
     "type": "string",
     "default": "[。？！?!\\n…]+"
   },
-  "clean_regex": {
-    "description": "分段后清理内容的正则表达式。",
+  "clean_before_items": {
+    "description": "【分段前】清理文本项(仅Simple生效)",
+    "hint": "在切分之前执行，直接删除填入的准确文本。非常适合新手填入 <think> 或 </think> 进行脱敏。",
+    "type": "list",
+    "default": []
+  },
+  "clean_after_items": {
+    "description": "【分段后】清理文本项(仅Simple生效)",
+    "hint": "在分段完成、发送前执行删除。注意不要误删关键标点。",
+    "type": "list",
+    "default": []
+  },
+  "clean_before_regex": {
+    "description": "【分段前】高级清理正则(仅Regex生效)",
+    "hint": "会在切分之前执行！如填写 <think>.*?</think> 将可安全地彻底剥离外置思维链而不受后续切分影响。",
     "type": "string",
     "default": ""
+  },
+  "clean_after_regex": {
+    "description": "【分段后】高级清理正则(仅Regex生效)",
+    "hint": "在分段完成、发送前对每个被切割好的段落执行清理。",
+    "type": "string",
+    "default": ""
+  },
+  "enable_group_split": {
+    "description": "是否开启群聊分段",
+    "hint": "当群组分段导致刷屏时，可关闭该开关，默认开启。",
+    "type": "bool",
+    "default": true
   },
   "trim_segment_edge_blank_lines": {
     "description": "是否清理每段首尾空行。",
@@ -40,8 +65,9 @@
     "type": "int",
     "default": 7
   },
-  "max_length_no_split":{
-    "description":"分段阈值",
+  "max_length_no_split": {
+    "description": "分段字数阈值",
+    "hint": "少于多少字不执行分段。填 0 禁用此功能。",
     "type": "int",
     "default": 0
   },
@@ -51,7 +77,7 @@
     "type": "bool",
     "default": false
   },
-"min_segment_length": {
+  "min_segment_length": {
     "description": "均分时的最小段落长度",
     "hint": "防止均分时切出只有几个字的碎片，建议设置 10-20。",
     "type": "int",
@@ -78,9 +104,9 @@
     "type": "bool",
     "default": true
   },
-  "split_scope":{
-    "description": "分段内容",
-    "hint": "默认只对LLM生成内容进行分段，可选择把插件输出也一起切了（我切我切我切！）",
+  "split_scope": {
+    "description": "分段内容范围",
+    "hint": "默认只对 LLM 生成内容进行分段，可选择把插件输出也一起切了",
     "type": "string",
     "options": ["llm_only", "all"],
     "default": "llm_only"

@@ -58,7 +58,7 @@ class MessageSplitterPlugin(Star):
             return
         instruction = (
             "\n【特别注意】如果你需要输出颜文字（如 (QAQ)），请务必使用三对反引号包裹，"
-            "格式如：格式如：```(QAQ)```。这能确保颜文字作为一个整体被发送，不会被分段工具切断。"
+            "格式如：```(QAQ)```。这能确保颜文字作为一个整体被发送，不会被分段工具切断。"
         )
         req.system_prompt += instruction
 
@@ -184,6 +184,7 @@ class MessageSplitterPlugin(Star):
                 else:
                     split_pattern = r"[\n]+" # 兜底
         else:
+            # 正则模式：使用自定义正则切分
             split_pattern = self.config.get("split_regex", r"[。？！?!\\n…]+")
 
         smart_mode = self.config.get("enable_smart_split", True) 
@@ -191,6 +192,7 @@ class MessageSplitterPlugin(Star):
         enable_reply = self.config.get("enable_reply", True) 
         trim_segment_edge_blank_lines = self.config.get("trim_segment_edge_blank_lines", True)
 
+        # 非文本组件（图片、艾特、表情等）的分段策略
         strategies = {
             "image": self.config.get("image_strategy", "单独"),
             "at": self.config.get("at_strategy", "跟随下段"),
@@ -393,6 +395,7 @@ class MessageSplitterPlugin(Star):
 
                 self._log_segment(i + 1, len(segments), segment_chain, "主动发送")
 
+                # 构建消息链并调用上下文接口发送
                 mc = MessageChain()
                 mc.chain = segment_chain
                 await self.context.send_message(event.unified_msg_origin, mc)
@@ -485,6 +488,7 @@ class MessageSplitterPlugin(Star):
 
             new_segment = []
             for comp in segment:
+                # 仅对长度大于 1 的纯文本进行语音化
                 if isinstance(comp, Plain) and len(comp.text) > 1:
                     try:
                         logger.info(f"[Splitter] TTS 请求: {comp.text[:50]}...")
@@ -514,6 +518,7 @@ class MessageSplitterPlugin(Star):
                 self.config.get("random_min", 1.0), self.config.get("random_max", 3.0)
             )
         elif strategy == "log":
+            # 对数延迟：字数越多延迟增加越缓
             base = self.config.get("log_base", 0.5)
             factor = self.config.get("log_factor", 0.8)
             return min(base + factor * math.log(len(text) + 1), 5.0)
@@ -542,6 +547,7 @@ class MessageSplitterPlugin(Star):
 
         for component in chain:
             if isinstance(component, Plain):
+                # 文本组件：根据正则模式切分
                 text = component.text
                 if not text:
                     continue
@@ -560,6 +566,7 @@ class MessageSplitterPlugin(Star):
                         ideal_length,
                     )
             else:
+                # 非文本组件（如图片、表情等）
                 c_type = type(component).__name__.lower()
 
                 if "reply" in c_type:
@@ -577,6 +584,7 @@ class MessageSplitterPlugin(Star):
                     strategy = strategies["default"]
 
                 if strategy == "单独":
+                    # 将之前的内容打包，当前组件单独作为一段，并开启下一段
                     if current_chain_buffer:
                         segments.append(current_chain_buffer[:])
                         current_chain_buffer.clear()
@@ -601,6 +609,7 @@ class MessageSplitterPlugin(Star):
                 else:
                     current_chain_buffer.append(component)
 
+        # 收集剩余的消息
         if current_chain_buffer:
             segments.append(current_chain_buffer)
         return [seg for seg in segments if seg]
@@ -615,6 +624,7 @@ class MessageSplitterPlugin(Star):
             if not part:
                 continue
             if re.fullmatch(pattern, part):
+                # 如果匹配到分隔符，则将累计的文本推入分段
                 temp_text += part
                 buffer.append(Plain(temp_text))
                 segments.append(buffer[:])
@@ -635,9 +645,12 @@ class MessageSplitterPlugin(Star):
         ideal_length: int = 0,
     ) -> int:
         """
-        智能文本切分逻辑
+        智能文本切分逻辑：
+        1. 保护代码块（```）。
+        2. 保护成对符号（括号、引号）不被中途切断。
+        3. 保护英文上下文及数字。
         """
-        stack = []  
+        stack = []  # 符号栈，用于追踪嵌套
         compiled_pattern = re.compile(pattern)
         i = 0
         n = len(text)

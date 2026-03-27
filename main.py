@@ -58,7 +58,7 @@ class MessageSplitterPlugin(Star):
             return
         instruction = (
             "\n【特别注意】如果你需要输出颜文字（如 (QAQ)），请务必使用三对反引号包裹，"
-            "格式如：```(QAQ)```。这能确保颜文字作为一个整体被发送，不会被分段工具切断。"
+            "格式如：格式如：```(QAQ)```。这能确保颜文字作为一个整体被发送，不会被分段工具切断。"
         )
         req.system_prompt += instruction
 
@@ -364,6 +364,15 @@ class MessageSplitterPlugin(Star):
                     for comp in seg:
                         if isinstance(comp, Plain) and comp.text:
                             comp.text = re.sub(clean_after_regex, "", comp.text, flags=re.DOTALL)
+
+        # 如果只有一段且没做处理，直接交给框架
+        clean_before_used = bool(self.config.get("clean_before_items", [])) or bool(self.config.get("clean_before_regex", ""))
+        clean_after_used = bool(self.config.get("clean_after_items", [])) or bool(self.config.get("clean_after_regex", ""))
+        if len(segments) <= 1 and not clean_before_used and not clean_after_used and not at_needs_processing:
+            result.chain.clear()
+            if segments:
+                result.chain.extend(segments[0])
+            return
 
         # 13. 发送前 N-1 段消息
         for i in range(len(segments) - 1):
